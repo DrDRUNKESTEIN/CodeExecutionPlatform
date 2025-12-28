@@ -29,18 +29,18 @@ public class RequestHandler {
     public PythonCluster getPythonCluster() {
         return pythonCluster;
     }
-    public boolean HandleRequest(String SourceCode, String Language){
+    public void HandleRequest(String SourceCode, String Language){
         if(Language.equals("C++")){
-            return cppCluster.ExecuteCppCode(SourceCode);
+            cppCluster.ExecuteCppCode(SourceCode);
         }
         else if(Language.equals("Java")){
-            return javaCluster.ExecuteJavaCode(SourceCode);
+            javaCluster.ExecuteJavaCode(SourceCode);
         }
         else if(Language.equals("Python")){
-            return pythonCluster.ExecutePythonCode(SourceCode);
+            pythonCluster.ExecutePythonCode(SourceCode);
         }
         else{
-            return false;
+            System.out.println("Language Not Supported");
         }
     }
 }

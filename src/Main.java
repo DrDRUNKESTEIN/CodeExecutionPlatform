@@ -1,8 +1,11 @@
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public class Main {
+    public static ExecutorService executor=Executors.newFixedThreadPool(10);
     public static void main(String[] args) {
         System.out.println("Code Execution Cluster System Initialized.");
         int handler_id=1;
@@ -33,16 +36,29 @@ public class Main {
                 System.out.print("Enter code (or 'exit' to quit): ");
                 code = reader.readLine();
                 if (code.equalsIgnoreCase("exit")) {
+                    System.out.println("Shutting down... waiting for queued tasks to finish.");
+                    // shutdown clusters (stop dispatchers)
+                    javaCluster.shutdown();
+                    pythonCluster.shutdown();
+                    cppCluster.shutdown();
+                    // stop accepting new tasks and wait
+                    executor.shutdown();
+                    try {
+                        if (!executor.awaitTermination(5, java.util.concurrent.TimeUnit.SECONDS)) {
+                            executor.shutdownNow();
+                        }
+                    } catch (InterruptedException ie) {
+                        executor.shutdownNow();
+                        Thread.currentThread().interrupt();
+                    }
+                    System.out.println("Shutdown complete.");
                     break;
                 }
                 System.out.print("Enter programming language (Java/Python/C++): ");
                 language = reader.readLine();
-                boolean result = requestHandler.HandleRequest(code, language);
-                if (result) {
-                    System.out.println("Code executed successfully.");
-                } else {
-                    System.out.println("Code execution failed.");
-                }
+                // Enqueue the request quickly and return; actual execution happens in cluster dispatchers
+                requestHandler.HandleRequest(code, language);
+                System.out.println("Request accepted and queued for execution.");
             } catch (Exception e) {
                 e.printStackTrace();
             }

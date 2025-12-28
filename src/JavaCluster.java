@@ -1,11 +1,47 @@
 import java.util.ArrayList;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.TimeUnit;
 
 public class JavaCluster {
     private int cluster_id;
     private ArrayList<CodeExecutor> executors = new ArrayList<CodeExecutor>();
+    private final BlockingQueue<Request> queue = new LinkedBlockingQueue<>();
+    private final Thread dispatcher;
+    private volatile boolean running = true;
     public JavaCluster(int cluster_id, ArrayList<CodeExecutor> executors) {
         this.cluster_id = cluster_id;
         this.executors = executors;
+        // start dispatcher thread
+        dispatcher = new Thread(() -> {
+            while (running || !queue.isEmpty()) {
+                try {
+                    Request req = queue.poll(500, TimeUnit.MILLISECONDS);
+                    if (req == null) continue;
+                    boolean assigned = false;
+                    // Try to find an available executor
+                    while (!assigned) {
+                        for (CodeExecutor executor : this.executors) {
+                            if (executor.isAvailable()) {
+                                assigned = true;
+                                // submit the actual execution to the shared executor service
+                                ExecutorService svc = Main.executor;
+                                svc.submit(() -> executor.ExecuteCode(req.getSourceCode()));
+                                break;
+                            }
+                        }
+                        if (!assigned) {
+                            Thread.sleep(100); // wait a bit and retry
+                        }
+                    }
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+            }
+        }, "JavaCluster-Dispatcher-" + cluster_id);
+        dispatcher.setDaemon(true);
+        dispatcher.start();
     }
     public int getCluster_id() {
         return cluster_id;
@@ -15,16 +51,13 @@ public class JavaCluster {
         return executors;
     }
     //implement hashing to distribute code execution requests across multiple Java code executors
-    public boolean ExecuteJavaCode(String SourceCode){
-        // Dummy implementation for executing Java code
-        //Find a executor that is empty
-        while(true){
-            for(CodeExecutor executor : executors){
-                if(executor.getAvailable() == 1){
-                    return executor.ExecuteCode(SourceCode);
-                }
-            }
-        }
-        
+    public void ExecuteJavaCode(String SourceCode){
+        // enqueue request and return immediately
+        queue.offer(new Request(SourceCode, "Java"));
+    }
+
+    public void shutdown() {
+        running = false;
+        dispatcher.interrupt();
     }
 }

@@ -1,10 +1,14 @@
+import java.util.concurrent.atomic.AtomicBoolean;
+
 public class CodeExecutor {
     private int executor_id;
     private String coding_language;
-    private int available;
-    public boolean ExecuteCode(String SourceCode){
-        
-        this.available = 0;
+    // Use AtomicBoolean for thread-safe availability checks/updates
+    private AtomicBoolean available = new AtomicBoolean(true);
+
+    public void ExecuteCode(String SourceCode){
+        // mark as busy
+        available.set(false);
         System.out.println("Executing code in " + coding_language + " with executor ID " + executor_id);
         System.out.println("Source Code: " + SourceCode);
 
@@ -12,26 +16,29 @@ public class CodeExecutor {
         try {
             Thread.sleep(2000); // Simulate time taken to execute code
         } catch (InterruptedException e) {
-            e.printStackTrace();
+            Thread.currentThread().interrupt();
+            System.out.println("Execution interrupted for executor " + executor_id);
         }
 
-        this.available = 1; // Mark executor as available
-        return true; // Assume execution is always successful
+        // mark as available again
+        available.set(true);
+        System.out.println("Execution finished on executor " + executor_id);
     }
+
     public CodeExecutor(int executor_id, String coding_language) {
         this.executor_id = executor_id;
         this.coding_language = coding_language;
-        this.available = 1; // 1 means available, 0 means busy
+        this.available.set(true);
     }
-    public int getAvailable() {
-        return available;
+
+    public boolean isAvailable() {
+        return available.get();
     }
-    public void setAvailable(int available) {
-        this.available = available;
-    }
+
     public String getCoding_language() {
         return coding_language;
     }
+
     public int getExecutor_id() {
         return executor_id;
     }
