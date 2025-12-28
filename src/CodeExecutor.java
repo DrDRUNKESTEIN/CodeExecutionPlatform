@@ -3,12 +3,20 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public class CodeExecutor {
     private int executor_id;
     private String coding_language;
-    // Use AtomicBoolean for thread-safe availability checks/updates
-    private AtomicBoolean available = new AtomicBoolean(true);
+    // Use AtomicBoolean for thread-safe acquire/release semantics
+    private final AtomicBoolean busy = new AtomicBoolean(false);
+
+    // Try to acquire the executor (returns true if successful)
+    public boolean tryAcquire() {
+        return busy.compareAndSet(false, true);
+    }
+
+    // Release the executor after work is done
+    public void release() {
+        busy.set(false);
+    }
 
     public void ExecuteCode(String SourceCode){
-        // mark as busy
-        available.set(false);
         System.out.println("Executing code in " + coding_language + " with executor ID " + executor_id);
         System.out.println("Source Code: " + SourceCode);
 
@@ -20,19 +28,16 @@ public class CodeExecutor {
             System.out.println("Execution interrupted for executor " + executor_id);
         }
 
-        // mark as available again
-        available.set(true);
         System.out.println("Execution finished on executor " + executor_id);
     }
 
     public CodeExecutor(int executor_id, String coding_language) {
         this.executor_id = executor_id;
         this.coding_language = coding_language;
-        this.available.set(true);
     }
 
     public boolean isAvailable() {
-        return available.get();
+        return !busy.get();
     }
 
     public String getCoding_language() {

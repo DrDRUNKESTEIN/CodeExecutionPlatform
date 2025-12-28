@@ -20,11 +20,20 @@ public class PythonCluster {
                     if (req == null) continue;
                     boolean assigned = false;
                     while (!assigned) {
-                        for (CodeExecutor executor : this.executors) {
-                            if (executor.isAvailable()) {
+                        int size = this.executors.size();
+                        int start = java.util.concurrent.ThreadLocalRandom.current().nextInt(size);
+                        for (int i = 0; i < size; i++) {
+                            CodeExecutor executor = this.executors.get((start + i) % size);
+                            if (executor.tryAcquire()) {
                                 assigned = true;
                                 ExecutorService svc = Main.executor;
-                                svc.submit(() -> executor.ExecuteCode(req.getSourceCode()));
+                                svc.submit(() -> {
+                                    try {
+                                        executor.ExecuteCode(req.getSourceCode());
+                                    } finally {
+                                        executor.release();
+                                    }
+                                });
                                 break;
                             }
                         }
